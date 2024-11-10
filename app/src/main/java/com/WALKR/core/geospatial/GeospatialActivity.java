@@ -104,7 +104,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
-
+import android.text.Html;
+import android.os.Build;
+import android.widget.TextView;
 
 /**
  * Main activity for the Geospatial API example.
@@ -176,6 +178,7 @@ public class GeospatialActivity extends AppCompatActivity
   private long deadlineForMessageMillis;
   private Marker currentLocationMarker;
   private Circle userLocationCircle;
+
 
   enum State {
     UNINITIALIZED,
@@ -285,6 +288,21 @@ public class GeospatialActivity extends AppCompatActivity
 
   private final Object routeAnchorsLock = new Object();
 
+  private List<DirectionStep> directionSteps = new ArrayList<>();
+  private int currentStepIndex = 0;
+  private static final double STEP_COMPLETION_THRESHOLD_METERS = 10.0;
+  private static class DirectionStep {
+    String instruction;
+    LatLng startLocation;
+    LatLng endLocation;
+
+    DirectionStep(String instruction, LatLng startLocation, LatLng endLocation) {
+      this.instruction = instruction;
+      this.startLocation = startLocation;
+      this.endLocation = endLocation;
+    }
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -360,6 +378,7 @@ public class GeospatialActivity extends AppCompatActivity
 
                   // Update MapView's marker and camera
                   updateMapLocation(location);
+                  checkIfReachedStepEnd(location);
 
                   break; // Use the first location in the list
                 }
@@ -1280,7 +1299,7 @@ public class GeospatialActivity extends AppCompatActivity
             FINAL_DESTINATION_LONGITUDE,
             new DirectionsCallback() {
               @Override
-              public void onSuccess(List<LatLng> newRoutePoints) {
+              public void onSuccess(List<LatLng> newRoutePoints, List<DirectionStep> newSteps) {
                 Log.d(TAG, "Route computation successful. Number of points: " + newRoutePoints.size());
 
                 // Define interpolation parameters
@@ -1300,6 +1319,13 @@ public class GeospatialActivity extends AppCompatActivity
 
                 // Update previousRoutePoints for future comparisons
                 previousRoutePoints = new ArrayList<>(newRoutePoints);
+
+                // Store the steps
+                directionSteps = newSteps;
+                currentStepIndex = 0;
+
+                // Update UI with the first two steps
+                runOnUiThread(() -> updateDirectionUI());
 
                 isRecalculatingRoute = false;
               }
@@ -1403,7 +1429,45 @@ public class GeospatialActivity extends AppCompatActivity
       JsonObject overviewPolyline = route.getAsJsonObject("overview_polyline");
       String encodedPoints = overviewPolyline.get("points").getAsString();
       List<LatLng> routePoints = decodePolyline(encodedPoints);
-      callback.onSuccess(routePoints);
+
+      // Extract steps
+      List<DirectionStep> steps = new ArrayList<>();
+      JsonArray legs = route.getAsJsonArray("legs");
+      if (legs.size() > 0) {
+        JsonObject leg = legs.get(0).getAsJsonObject();
+        JsonArray jsonSteps = leg.getAsJsonArray("steps");
+        for (JsonElement stepElement : jsonSteps) {
+          JsonObject step = stepElement.getAsJsonObject();
+          String htmlInstructions = step.get("html_instructions").getAsString();
+
+          // Remove HTML tags from instructions
+          String plainInstructions;
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            plainInstructions = Html.fromHtml(htmlInstructions, Html.FROM_HTML_MODE_LEGACY).toString();
+          } else {
+            plainInstructions = Html.fromHtml(htmlInstructions).toString();
+          }
+
+          // Get start location
+          JsonObject startLocation = step.getAsJsonObject("start_location");
+          double startLat = startLocation.get("lat").getAsDouble();
+          double startLng = startLocation.get("lng").getAsDouble();
+
+          // Get end location
+          JsonObject endLocation = step.getAsJsonObject("end_location");
+          double endLat = endLocation.get("lat").getAsDouble();
+          double endLng = endLocation.get("lng").getAsDouble();
+
+          DirectionStep directionStep = new DirectionStep(
+                  plainInstructions,
+                  new LatLng(startLat, startLng),
+                  new LatLng(endLat, endLng)
+          );
+          steps.add(directionStep);
+        }
+      }
+
+      callback.onSuccess(routePoints, steps);
     } catch (Exception e) {
       callback.onFailure("Parsing Error: " + e.getMessage());
     }
@@ -1447,8 +1511,7 @@ public class GeospatialActivity extends AppCompatActivity
   }
 
   private interface DirectionsCallback {
-    void onSuccess(List<LatLng> routePoints);
-
+    void onSuccess(List<LatLng> routePoints, List<DirectionStep> steps);
     void onFailure(String error);
   }
 
@@ -1867,6 +1930,50 @@ public class GeospatialActivity extends AppCompatActivity
       googleMap.animateCamera(CameraUpdateFactory.newLatLng(userLatLng));
     }
   }
+  private void updateDirectionUI() {
+    TextView currentDirectionView = findViewById(R.id.current_direction);
+    TextView nextDirectionView = findViewById(R.id.next_direction);
+
+    if (currentStepIndex < directionSteps.size()) {
+      DirectionStep currentStep = directionSteps.get(currentStepIndex);
+      currentDirectionView.setText(currentStep.instruction != null && !currentStep.instruction.isEmpty()
+              ? currentStep.instruction
+              : "Proceed to your destination");
+    } else {
+      currentDirectionView.setText("You have arrived at your destination");
+    }
+
+    if (currentStepIndex + 1 < directionSteps.size()) {
+      DirectionStep nextStep = directionSteps.get(currentStepIndex + 1);
+      nextDirectionView.setText(nextStep.instruction != null && !nextStep.instruction.isEmpty()
+              ? nextStep.instruction
+              : "Continue to your destination");
+      nextDirectionView.setVisibility(View.VISIBLE);
+    } else {
+      nextDirectionView.setVisibility(View.GONE);
+    }
+  }
+
+  private void checkIfReachedStepEnd(Location location) {
+    if (currentStepIndex >= directionSteps.size()) {
+      return;
+    }
+
+    DirectionStep currentStep = directionSteps.get(currentStepIndex);
+    double distanceToEnd = distanceBetween(
+            location.getLatitude(),
+            location.getLongitude(),
+            currentStep.endLocation.latitude,
+            currentStep.endLocation.longitude
+    );
+
+    if (distanceToEnd < STEP_COMPLETION_THRESHOLD_METERS) {
+      // Move to next step
+      currentStepIndex++;
+      runOnUiThread(() -> updateDirectionUI());
+    }
+  }
+
 
 }
 

@@ -7,76 +7,132 @@
     android:layout_height="match_parent"
     tools:context="com.WALKR.core.geospatial.GeospatialActivity">
 
-  <!-- AR SurfaceView -->
-  <android.opengl.GLSurfaceView
-      android:id="@+id/surfaceview"
-      android:layout_width="0dp"
-      android:layout_height="0dp"
-      app:layout_constraintBottom_toBottomOf="parent"
-      app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintStart_toStartOf="parent"
-      app:layout_constraintTop_toTopOf="parent" />
+    <!-- AR SurfaceView -->
+<android.opengl.GLSurfaceView
+android:id="@+id/surfaceview"
+android:layout_width="0dp"
+android:layout_height="0dp"
+app:layout_constraintBottom_toBottomOf="parent"
+app:layout_constraintEnd_toEndOf="parent"
+app:layout_constraintHorizontal_bias="0.0"
+app:layout_constraintStart_toStartOf="parent"
+app:layout_constraintTop_toTopOf="parent"
+app:layout_constraintVertical_bias="0.0" />
 
-  <!-- MapView wrapped inside CardView for rounded corners and elevation -->
-  <androidx.cardview.widget.CardView
-      android:id="@+id/mapContainer"
-      android:layout_width="166dp"
-      android:layout_height="153dp"
-      android:layout_margin="0dp"
-      app:cardCornerRadius="50dp"
-      app:cardElevation="8dp"
-      app:layout_constraintStart_toStartOf="parent"
-      tools:layout_editor_absoluteY="2dp">
+    <!-- MapView inside CardView with adjusted position and border -->
+<androidx.cardview.widget.CardView
+android:id="@+id/mapContainer"
+android:layout_width="120dp"
+android:layout_height="120dp"
+app:cardCornerRadius="50dp"
+app:cardElevation="8dp"
+android:background="@drawable/maps_border"
+app:layout_constraintTop_toTopOf="parent"
+app:layout_constraintEnd_toEndOf="parent"
+android:layout_marginTop="16dp"
+android:layout_marginEnd="16dp">
 
-    <com.google.android.gms.maps.MapView
-        android:id="@+id/mapView"
-        android:layout_width="match_parent"
-        android:layout_height="197dp" />
+<com.google.android.gms.maps.MapView
+android:id="@+id/mapView"
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+android:alpha="0.9" />
 
-  </androidx.cardview.widget.CardView>
+    </androidx.cardview.widget.CardView>
 
-  <!-- DEBUG SWITCHES -->
+    <!-- Directions Information with beveled edges for current direction -->
+<androidx.cardview.widget.CardView
+android:id="@+id/directions_bar"
+android:layout_width="142dp"
+android:layout_height="69dp"
+android:layout_marginStart="16dp"
+android:layout_marginTop="16dp"
+android:background="#99B3E5FC"
+android:padding="8dp"
+app:cardCornerRadius="16dp"
+app:cardElevation="4dp"
+app:layout_constraintStart_toStartOf="parent"
+app:layout_constraintTop_toTopOf="parent">
 
-  <androidx.appcompat.widget.SwitchCompat
-      android:id="@+id/streetscape_geometry_switch"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="@string/switch_render_streetscaope_geometry"
-      android:textOff="Off"
-      android:textOn="On"
-      app:layout_constraintBottom_toBottomOf="parent"
-      app:layout_constraintEnd_toEndOf="parent"
-      android:padding="10dp"
-      android:visibility="invisible"/>
+<LinearLayout
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+android:gravity="center"
+android:orientation="vertical">
 
-  <androidx.appcompat.widget.SwitchCompat
-      android:id="@+id/wheelchair_switch"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="Wheelchair Accessible Route"
-      app:layout_constraintTop_toBottomOf="@id/replace_route_anchors_button"
-      app:layout_constraintStart_toStartOf="parent"
-      app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintHorizontal_bias="0.5"
-      android:visibility="invisible"/>
+<TextView
+android:id="@+id/current_direction"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Current Direction"
+android:textColor="#002171"
+android:textSize="18sp"
+android:textStyle="bold"
+android:layout_gravity="center" />
 
-  <Button
-      android:id="@+id/replace_route_anchors_button"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_marginTop="40dp"
-      android:text="Replace Route Anchors"
-      app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintHorizontal_bias="1.0"
-      app:layout_constraintStart_toStartOf="parent" />
+<TextView
+android:id="@+id/next_direction"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Next Direction"
+android:textColor="#66002171"
+android:textSize="16sp" />
 
-  <Button
-      android:id="@+id/clear_anchors_button"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="@string/button_text_clear_anchors"
-      app:layout_constraintBottom_toBottomOf="parent"
-      app:layout_constraintStart_toStartOf="parent"
-      android:visibility="invisible"/>
+</LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Replace Route Anchors Button positioned at the bottom center -->
+<Button
+android:id="@+id/replace_route_anchors_button"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Replace Route Anchors"
+android:backgroundTint="#80B3E5FC"
+android:textColor="#002171"
+app:layout_constraintBottom_toBottomOf="parent"
+app:layout_constraintStart_toStartOf="parent"
+app:layout_constraintEnd_toEndOf="parent"
+android:layout_marginBottom="16dp" />
+
+<!-- Clear Anchors Button below Replace Route Anchors Button -->
+<Button
+android:id="@+id/clear_anchors_button"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Clear Anchors"
+android:backgroundTint="#80B3E5FC"
+android:textColor="#002171"
+app:layout_constraintBottom_toTopOf="@id/replace_route_anchors_button"
+app:layout_constraintStart_toStartOf="parent"
+app:layout_constraintEnd_toEndOf="parent"
+android:layout_marginBottom="8dp"
+android:visibility="invisible" />
+
+    <!-- Streetscape Geometry Switch at the bottom right -->
+<androidx.appcompat.widget.SwitchCompat
+android:id="@+id/streetscape_geometry_switch"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Render Streetscape Geometry"
+android:textColor="#002171"
+android:thumbTint="#80B3E5FC"
+app:layout_constraintBottom_toBottomOf="parent"
+app:layout_constraintEnd_toEndOf="parent"
+android:layout_marginBottom="16dp"
+android:layout_marginEnd="16dp"
+android:visibility="invisible"/>
+
+<androidx.appcompat.widget.SwitchCompat
+android:id="@+id/wheelchair_switch"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:text="Wheelchair Accessible Route"
+android:textColor="#002171"
+android:thumbTint="#80B3E5FC"
+app:layout_constraintTop_toBottomOf="@id/directions_bar"
+app:layout_constraintStart_toStartOf="parent"
+android:layout_marginTop="8dp"
+android:visibility="invisible" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

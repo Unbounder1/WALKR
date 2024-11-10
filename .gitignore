@@ -1,0 +1,19 @@
+# Gradle files
+.gradle/
+build/
+!gradle-wrapper.jar
+.gradle/
+local.properties
+
+# Android Studio/IntelliJ files
+.idea/
+*.iml
+
+# Capture folders and cache
+captures/
+.externalNativeBuild
+.cxx
+.DS_Store
+
+# Ignore generated files in app/build
+app/build/

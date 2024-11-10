@@ -19,26 +19,46 @@ app:layout_constraintStart_toStartOf="parent"
 app:layout_constraintTop_toTopOf="parent"
 app:layout_constraintVertical_bias="0.0" />
 
-    <!-- MapView inside CardView with adjusted position and border -->
-<androidx.cardview.widget.CardView
-android:id="@+id/mapContainer"
-android:layout_width="120dp"
-android:layout_height="120dp"
-app:cardCornerRadius="50dp"
-app:cardElevation="8dp"
-android:background="@drawable/maps_border"
-app:layout_constraintTop_toTopOf="parent"
-app:layout_constraintEnd_toEndOf="parent"
-android:layout_marginTop="16dp"
-android:layout_marginEnd="16dp">
+    <ImageView
+        android:id="@+id/myImageView"
+        android:layout_width="268dp"
+        android:layout_height="211dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:contentDescription="@null"
+        android:scaleType="centerInside"
+        android:src="@drawable/scifi_map"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
 
-<com.google.android.gms.maps.MapView
-android:id="@+id/mapView"
-android:layout_width="match_parent"
-android:layout_height="match_parent"
-android:alpha="0.9" />
+    <FrameLayout
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/maps_border"
+    android:layout_marginTop="16dp"
+    android:layout_marginEnd="16dp"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toTopOf="parent">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/mapContainer"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        app:cardCornerRadius="120dp"
+        app:cardElevation="10dp">
+
+        <com.google.android.gms.maps.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.9" />
 
     </androidx.cardview.widget.CardView>
+</FrameLayout>
 
     <!-- Directions Information with beveled edges for current direction -->
 <androidx.cardview.widget.CardView
@@ -58,7 +78,8 @@ app:layout_constraintTop_toTopOf="parent">
 android:layout_width="match_parent"
 android:layout_height="match_parent"
 android:gravity="center"
-android:orientation="vertical">
+android:orientation="vertical"
+android:background="#8033A1C9">
 
 <TextView
 android:id="@+id/current_direction"
@@ -70,7 +91,15 @@ android:textSize="18sp"
 android:textStyle="bold"
 android:layout_gravity="center" />
 
-<TextView
+    <ImageView
+        android:id="@+id/myImageView"
+        android:layout_width="160dp"
+        android:layout_height="211dp"
+        android:contentDescription="@null"
+        android:scaleType="centerInside"
+        android:src="@drawable/rounded_rectangle" />
+
+    <TextView
 android:id="@+id/next_direction"
 android:layout_width="wrap_content"
 android:layout_height="wrap_content"
@@ -80,6 +109,7 @@ android:textSize="16sp" />
 
 </LinearLayout>
     </androidx.cardview.widget.CardView>
+
 
     <!-- Replace Route Anchors Button positioned at the bottom center -->
 <Button
@@ -92,7 +122,8 @@ android:textColor="#002171"
 app:layout_constraintBottom_toBottomOf="parent"
 app:layout_constraintStart_toStartOf="parent"
 app:layout_constraintEnd_toEndOf="parent"
-android:layout_marginBottom="16dp" />
+android:layout_marginBottom="16dp"
+android:visibility="invisible" />
 
 <!-- Clear Anchors Button below Replace Route Anchors Button -->
 <Button
@@ -133,6 +164,8 @@ app:layout_constraintTop_toBottomOf="@id/directions_bar"
 app:layout_constraintStart_toStartOf="parent"
 android:layout_marginTop="8dp"
 android:visibility="invisible" />
+
+
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

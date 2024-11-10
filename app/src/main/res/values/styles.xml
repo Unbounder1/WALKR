@@ -28,9 +28,15 @@
     -->
   </style>
 
+  <!-- Define a text appearance style with custom font -->
+  <style name="CustomTextAppearance" parent="TextAppearance.AppCompat">
+    <item name="fontFamily">@font/EurostileExtendedBlack </item>
+  </style>
+
   <!-- Application theme. -->
-  <style name="AppTheme" parent="AppBaseTheme">
-    <!-- All customizations that are NOT specific to a particular API-level can go here. -->
+  <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+    <!-- Set default text appearance with custom font -->
+    <item name="android:textAppearance">@style/CustomTextAppearance</item>
   </style>
 
   <style name="AlertDialogCustom" parent="Theme.AppCompat.Light.Dialog.Alert">

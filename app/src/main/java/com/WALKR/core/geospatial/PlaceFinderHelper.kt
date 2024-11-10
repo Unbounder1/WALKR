@@ -22,9 +22,9 @@ class PlaceFinderHelper(private val apiKey: String) {
     @OptIn(DelicateCoroutinesApi::class)
     fun getPlaceAddress(locationName: String, callback: PlaceFinderCallback) {
         GlobalScope.launch(Dispatchers.IO) {
-            val roughLatitude = 42.7284  // Replace with your specific latitude
-            val roughLongitude = -73.6918  // Replace with your specific longitude
-            val searchRadius = 20000  // Radius in meters, e.g., 50km
+            val roughLatitude = 42.7284  // roughly troy ny
+            val roughLongitude = -73.6918
+            val searchRadius = 20000  // Radius in meters, 20km
 
             val url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json" +
                     "?input=$locationName&inputtype=textquery&fields=formatted_address,geometry" +

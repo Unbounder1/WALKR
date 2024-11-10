@@ -69,17 +69,25 @@ class SpeechRecognizerHelper(
 
     override fun onResult(hypothesis: String?) {
         hypothesis?.let {
-            val recognizedText = JSONObject(it).optString("text")
+            val recognizedText = JSONObject(it).optString("text").lowercase()
+
             when {
-                recognizedText.contains("hibachi station", ignoreCase = true) -> {
-                    listener.onRecognizedText("Hibachi station requested!")
-                    stopListening()  // Stop listening after recognizing "hibachi station"
+                recognizedText.contains("hibachi station") && recognizedText.contains("accessible") -> {
+                    listener.onRecognizedText("hibachi station accessible")
+                    stopListening()
                     fetchPlaceDetails("hibachi station")
                 }
-                recognizedText.contains("pothole", ignoreCase = true) && recognizedText.contains("report", ignoreCase = true) -> {
-                    listener.onRecognizedText("Pothole report requested!")
+                recognizedText.contains("hibachi station") -> {
+                    listener.onRecognizedText("hibachi station")
+                    stopListening()
+                    fetchPlaceDetails("hibachi station")
                 }
-                else -> listener.onRecognizedText("Unrecognized phrase")
+                recognizedText.contains("pothole") && recognizedText.contains("report") -> {
+                    listener.onRecognizedText("report pothole")
+                }
+                else -> {
+                    listener.onRecognizedText("Unrecognized phrase")
+                }
             }
         }
     }

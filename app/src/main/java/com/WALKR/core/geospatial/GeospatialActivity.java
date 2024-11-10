@@ -321,7 +321,7 @@ public class GeospatialActivity extends AppCompatActivity
     placeFinderHelper = new PlaceFinderHelper(DIRECTIONS_API_KEY);
 
     // Initialize SpeechRecognizerHelper
-    List<String> customPhrases = Arrays.asList("hibachi station", "pothole report");
+    List<String> customPhrases = Arrays.asList("hibachi station", "report pothole", "hibachi station accessible");
     speechRecognizerHelper = new SpeechRecognizerHelper(this, this, DIRECTIONS_API_KEY);
     speechRecognizerHelper.initializeRecognizer(customPhrases);
 
@@ -407,58 +407,64 @@ public class GeospatialActivity extends AppCompatActivity
     requestNewLocationData();
   }
 
-  // Implement SpeechRecognizerHelper.SpeechRecognitionListener methods
   @Override
   public void onRecognizedText(String text) {
-    Log.d("GeospatialActivity", "Received recognized text: " + text); // Log the recognized text
-
-    if (text.equals("Hibachi station requested!")) {
-      Log.d("GeospatialActivity", "Detected 'Hibachi station requested!'"); // Log specific detection
-
-      // Fetch place details
-      runOnUiThread(() -> {
-        Toast.makeText(this, "Fetching coordinates for Hibachi Station...", Toast.LENGTH_SHORT).show();
-      });
-
-      // Fetch the coordinates asynchronously
-      placeFinderHelper.getPlaceAddress("hibachi station", new PlaceFinderHelper.PlaceFinderCallback() {
-        @Override
-        public void onResult(String address, Map<String, Double> coordinates) {
-          if (coordinates != null) {
-            double lat = coordinates.get("lat");
-            double lng = coordinates.get("lng");
-
-            // Update the destination coordinates
-            FINAL_DESTINATION_LATITUDE = lat;
-            FINAL_DESTINATION_LONGITUDE = lng;
-
-            runOnUiThread(() -> {
-              Toast.makeText(GeospatialActivity.this, "Destination updated to Hibachi Station", Toast.LENGTH_SHORT).show();
-              // Recompute the route with the new destination
-              fetchCurrentLocationAndComputeRoute();
-            });
-          } else {
-            runOnUiThread(() -> {
-              Toast.makeText(GeospatialActivity.this, "Failed to fetch coordinates for Hibachi Station", Toast.LENGTH_SHORT).show();
-            });
-          }
-        }
-      });
-    } else if (text.equals("Pothole report requested!")) {
-      Log.d("GeospatialActivity", "Detected 'Pothole report requested!'"); // Log specific detection
-
-      // Handle pothole report
-      runOnUiThread(() -> {
-        Toast.makeText(this, "Pothole report functionality not implemented yet.", Toast.LENGTH_SHORT).show();
-      });
+    if (text.equalsIgnoreCase("hibachi station") || text.equalsIgnoreCase("hibachi station accessible")) {
+      handleHibachiStationRequest(text);
+    } else if (text.equalsIgnoreCase("report pothole")) {
+      handlePotholeReportRequest();
     } else {
-      Log.d("GeospatialActivity", "Phrase unrecognized"); // Log unrecognized phrase
-      runOnUiThread(() -> {
-        Toast.makeText(this, "Unrecognized phrase", Toast.LENGTH_SHORT).show();
-      });
+      handleUnrecognizedPhrase();
     }
   }
 
+  private void handleHibachiStationRequest(String text) {
+    // Set isWheelchairAccessible based on the presence of "wheelchair" in the recognized text
+    boolean isWheelchairAccessible = text.toLowerCase().contains("accessible");
+
+    runOnUiThread(() ->
+            Toast.makeText(this, "Fetching coordinates for Hibachi Station...", Toast.LENGTH_SHORT).show()
+    );
+
+    placeFinderHelper.getPlaceAddress("hibachi station", new PlaceFinderHelper.PlaceFinderCallback() {
+      @Override
+      public void onResult(String address, Map<String, Double> coordinates) {
+        if (coordinates != null) {
+          double lat = coordinates.get("lat");
+          double lng = coordinates.get("lng");
+
+          FINAL_DESTINATION_LATITUDE = lat;
+          FINAL_DESTINATION_LONGITUDE = lng;
+
+          runOnUiThread(() -> {
+            String accessibility = isWheelchairAccessible ? " (Wheelchair accessible)" : "";
+            Toast.makeText(
+                    GeospatialActivity.this,
+                    "Destination updated to Hibachi Station" + accessibility,
+                    Toast.LENGTH_SHORT
+            ).show();
+            fetchCurrentLocationAndComputeRoute();
+          });
+        } else {
+          runOnUiThread(() ->
+                  Toast.makeText(GeospatialActivity.this, "Failed to fetch coordinates for Hibachi Station", Toast.LENGTH_SHORT).show()
+          );
+        }
+      }
+    });
+  }
+
+  private void handlePotholeReportRequest() {
+    runOnUiThread(() ->
+            Toast.makeText(this, "Pothole report functionality not implemented yet.", Toast.LENGTH_SHORT).show()
+    );
+  }
+
+  private void handleUnrecognizedPhrase() {
+    runOnUiThread(() ->
+            Toast.makeText(this, "Unrecognized phrase", Toast.LENGTH_SHORT).show()
+    );
+  }
 
   @Override
   public void onRecognitionError(String errorMessage) {

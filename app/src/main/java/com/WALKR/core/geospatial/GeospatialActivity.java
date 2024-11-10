@@ -8,9 +8,7 @@ import android.opengl.Matrix;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
-import android.view.GestureDetector;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.media.MediaPlayer;
 import android.widget.Button;
@@ -28,7 +26,6 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.ar.core.Anchor;
-import com.google.ar.core.Anchor.RooftopAnchorState;
 import com.google.ar.core.Anchor.TerrainAnchorState;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Camera;
@@ -36,17 +33,10 @@ import com.google.ar.core.Config;
 import com.google.ar.core.Earth;
 import com.google.ar.core.Frame;
 import com.google.ar.core.GeospatialPose;
-import com.google.ar.core.HitResult;
-import com.google.ar.core.Plane;
-import com.google.ar.core.Point;
-import com.google.ar.core.Point.OrientationMode;
-import com.google.ar.core.PointCloud;
 import com.google.ar.core.Pose;
-import com.google.ar.core.ResolveAnchorOnRooftopFuture;
 import com.google.ar.core.ResolveAnchorOnTerrainFuture;
 import com.google.ar.core.Session;
 import com.google.ar.core.StreetscapeGeometry;
-import com.google.ar.core.Trackable;
 import com.google.ar.core.TrackingState;
 import com.google.ar.core.VpsAvailability;
 import com.google.ar.core.VpsAvailabilityFuture;
@@ -56,6 +46,7 @@ import com.WALKR.core.common.helpers.FullScreenHelper;
 import com.WALKR.core.common.helpers.LocationPermissionHelper;
 import com.WALKR.core.common.helpers.SnackbarHelper;
 import com.WALKR.core.common.helpers.TrackingStateHelper;
+import com.WALKR.core.common.helpers.AudioPermissionHelper;
 import com.WALKR.core.common.samplerender.Framebuffer;
 import com.WALKR.core.common.samplerender.IndexBuffer;
 import com.WALKR.core.common.samplerender.Mesh;
@@ -86,8 +77,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.Iterator;
+
+// the good ones *_^
+
 
 /**
  * Main activity for the Geospatial API example.
@@ -99,7 +94,8 @@ import java.util.Iterator;
 public class GeospatialActivity extends AppCompatActivity
         implements SampleRender.Renderer,
         VpsAvailabilityNoticeDialogFragment.NoticeDialogListener,
-        PrivacyNoticeDialogFragment.NoticeDialogListener {
+        PrivacyNoticeDialogFragment.NoticeDialogListener,
+        SpeechRecognizerHelper.SpeechRecognitionListener {
 
   private static final String TAG = GeospatialActivity.class.getSimpleName();
 
@@ -134,10 +130,13 @@ public class GeospatialActivity extends AppCompatActivity
   private static final long DURATION_FOR_NO_TERRAIN_ANCHOR_RESULT_MS = 10000;
   private static final int MAX_SEGMENT_DISTANCE_METERS = 50;
 
-  private static final double FINAL_DESTINATION_LATITUDE = 42.72992506225727; // Example latitude
-  private static final double FINAL_DESTINATION_LONGITUDE = -73.67667982209569; // Example longitude
-  private static final double FINAL_DESTINATION_ALTITUDE = 0; // Example altitude in meters
+  // Replace static final variables with instance variables
+  private double FINAL_DESTINATION_LATITUDE = 42.72992506225727; // Example latitude
+  private double FINAL_DESTINATION_LONGITUDE = -73.67667982209569; // Example longitude
+  private double FINAL_DESTINATION_ALTITUDE = 0; // Example altitude in meters
 
+  private SpeechRecognizerHelper speechRecognizerHelper;
+  private PlaceFinderHelper placeFinderHelper;
 
   // Rendering
   private GLSurfaceView surfaceView;
@@ -268,6 +267,15 @@ public class GeospatialActivity extends AppCompatActivity
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+
+    // Initialize PlaceFinderHelper
+    placeFinderHelper = new PlaceFinderHelper(DIRECTIONS_API_KEY);
+
+    // Initialize SpeechRecognizerHelper
+    List<String> customPhrases = Arrays.asList("hibachi station", "pothole report");
+    speechRecognizerHelper = new SpeechRecognizerHelper(this, this, DIRECTIONS_API_KEY);
+    speechRecognizerHelper.initializeRecognizer(customPhrases);
+
     targetLocations.add(new TargetLocation(42.73005514542626, -73.68164119587962 , 40));
 
     sharedPreferences = getPreferences(Context.MODE_PRIVATE);
@@ -361,6 +369,66 @@ public class GeospatialActivity extends AppCompatActivity
     requestNewLocationData();
   }
 
+  // Implement SpeechRecognizerHelper.SpeechRecognitionListener methods
+  @Override
+  public void onRecognizedText(String text) {
+    Log.d("GeospatialActivity", "Received recognized text: " + text); // Log the recognized text
+
+    if (text.equals("Hibachi station requested!")) {
+      Log.d("GeospatialActivity", "Detected 'Hibachi station requested!'"); // Log specific detection
+
+      // Fetch place details
+      runOnUiThread(() -> {
+        Toast.makeText(this, "Fetching coordinates for Hibachi Station...", Toast.LENGTH_SHORT).show();
+      });
+
+      // Fetch the coordinates asynchronously
+      placeFinderHelper.getPlaceAddress("hibachi station", new PlaceFinderHelper.PlaceFinderCallback() {
+        @Override
+        public void onResult(String address, Map<String, Double> coordinates) {
+          if (coordinates != null) {
+            double lat = coordinates.get("lat");
+            double lng = coordinates.get("lng");
+
+            // Update the destination coordinates
+            FINAL_DESTINATION_LATITUDE = lat;
+            FINAL_DESTINATION_LONGITUDE = lng;
+
+            runOnUiThread(() -> {
+              Toast.makeText(GeospatialActivity.this, "Destination updated to Hibachi Station", Toast.LENGTH_SHORT).show();
+              // Recompute the route with the new destination
+              fetchCurrentLocationAndComputeRoute();
+            });
+          } else {
+            runOnUiThread(() -> {
+              Toast.makeText(GeospatialActivity.this, "Failed to fetch coordinates for Hibachi Station", Toast.LENGTH_SHORT).show();
+            });
+          }
+        }
+      });
+    } else if (text.equals("Pothole report requested!")) {
+      Log.d("GeospatialActivity", "Detected 'Pothole report requested!'"); // Log specific detection
+
+      // Handle pothole report
+      runOnUiThread(() -> {
+        Toast.makeText(this, "Pothole report functionality not implemented yet.", Toast.LENGTH_SHORT).show();
+      });
+    } else {
+      Log.d("GeospatialActivity", "Phrase unrecognized"); // Log unrecognized phrase
+      runOnUiThread(() -> {
+        Toast.makeText(this, "Unrecognized phrase", Toast.LENGTH_SHORT).show();
+      });
+    }
+  }
+
+
+  @Override
+  public void onRecognitionError(String errorMessage) {
+    runOnUiThread(() -> {
+      Toast.makeText(this, "Recognition Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+    });
+  }
+
   @Override
   protected void onDestroy() {
     if (mediaPlayer != null) {
@@ -420,6 +488,11 @@ public class GeospatialActivity extends AppCompatActivity
         // Check location permissions
         if (!LocationPermissionHelper.hasFineLocationPermission(this)) {
           LocationPermissionHelper.requestFineLocationPermission(this);
+          return;
+        }
+        // Check audio input permission
+        if (AudioPermissionHelper.hasAudioPermission(this)) {
+          AudioPermissionHelper.requestAudioPermission(this);
           return;
         }
 
@@ -563,6 +636,20 @@ public class GeospatialActivity extends AppCompatActivity
       if (!LocationPermissionHelper.shouldShowRequestPermissionRationale(this)) {
         // Permission denied with checking "Do not ask again".
         LocationPermissionHelper.launchPermissionSettings(this);
+      }
+      finish();
+    }
+    // Check if this result pertains to the audio permission.
+    if (AudioPermissionHelper.hasAudioPermissionsResponseInResult(permissions)
+            && AudioPermissionHelper.hasAudioPermission(this)) {
+      Toast.makeText(
+                      this,
+                      "Audio input permission is needed to run this application",
+                      Toast.LENGTH_LONG)
+              .show();
+      if (!AudioPermissionHelper.shouldShowRequestPermissionRationale(this)) {
+        // Permission denied with checking "Do not ask again".
+        AudioPermissionHelper.launchPermissionSettings(this);
       }
       finish();
     }

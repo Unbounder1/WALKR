@@ -28,6 +28,11 @@
     -->
   </style>
 
+  <!-- Define a text appearance style with custom font -->
+  <style name="CustomTextAppearance" parent="TextAppearance.AppCompat">
+    <item name="fontFamily">@raw/EurostileExtendedBlack</item>
+  </style>
+
   <!-- Application theme. -->
   <style name="AppTheme" parent="AppBaseTheme">
     <!-- All customizations that are NOT specific to a particular API-level can go here. -->

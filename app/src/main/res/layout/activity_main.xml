@@ -153,17 +153,6 @@ android:layout_marginBottom="16dp"
 android:layout_marginEnd="16dp"
 android:visibility="invisible"/>
 
-<androidx.appcompat.widget.SwitchCompat
-android:id="@+id/wheelchair_switch"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
-android:text="Wheelchair Accessible Route"
-android:textColor="#002171"
-android:thumbTint="#80B3E5FC"
-app:layout_constraintTop_toBottomOf="@id/directions_bar"
-app:layout_constraintStart_toStartOf="parent"
-android:layout_marginTop="8dp"
-android:visibility="invisible" />
 
 
 

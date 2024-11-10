@@ -30,7 +30,7 @@
 
   <!-- Define a text appearance style with custom font -->
   <style name="CustomTextAppearance" parent="TextAppearance.AppCompat">
-    <item name="fontFamily">@font/EurostileExtendedBlack </item>
+    <item name="fontFamily"> @font/eurostile </item>
   </style>
 
   <!-- Application theme. -->

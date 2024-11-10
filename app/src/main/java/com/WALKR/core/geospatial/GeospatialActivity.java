@@ -144,6 +144,7 @@ public class GeospatialActivity extends AppCompatActivity
   private static final float MAP_ZOOM = 18;
   private static final double BUS_STOP_THRESHOLD = 500.0;
   private boolean isWheelchairAccessible = false;
+  private boolean isRoutingActive = false;
 
   private static final float Z_NEAR = 0.1f;
   private static final float Z_FAR = 1000f;
@@ -334,23 +335,6 @@ public class GeospatialActivity extends AppCompatActivity
     clearAnchorsButton = findViewById(R.id.clear_anchors_button);
     replaceRouteAnchorsButton = findViewById(R.id.replace_route_anchors_button); // Initialize new button
 
-    // Initialize the Wheelchair Accessible Route Switch
-    SwitchCompat wheelchairSwitch = findViewById(R.id.wheelchair_switch);
-
-    if (wheelchairSwitch != null) {
-      wheelchairSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-        isWheelchairAccessible = isChecked;
-        Toast.makeText(this, "Wheelchair Accessible Route: " + (isChecked ? "Enabled" : "Disabled"), Toast.LENGTH_SHORT).show();
-        if (isChecked) {
-          Toast.makeText(this, "Note: Wheelchair-accessible routes are approximated and may not be fully accessible.", Toast.LENGTH_LONG).show();
-        }
-        updateTerrainAnchorTexture();
-        handleReplaceRouteAnchorsButton();
-      });
-    } else {
-      Log.e(TAG, "wheelchair_switch not found in layout");
-    }
-
     // Set up Replace Route Anchors Button
     replaceRouteAnchorsButton.setOnClickListener(
             new View.OnClickListener() {
@@ -379,26 +363,30 @@ public class GeospatialActivity extends AppCompatActivity
 
     // Set up location callback
     locationCallback =
-            new LocationCallback() {
+            locationCallback = new LocationCallback() {
               @Override
               public void onLocationResult(LocationResult locationResult) {
                 if (locationResult == null) {
                   return;
                 }
                 for (Location location : locationResult.getLocations()) {
-                  // Check proximity to anchors
-                  checkProximityToAnchors(location);
+                  if (isRoutingActive) {
+                    // Check proximity to anchors
+                    checkProximityToAnchors(location);
 
-                  // Recompute route based on significant movement
-                  if (lastRouteLocation == null || location.distanceTo(lastRouteLocation) > ROUTE_RECALCULATION_DISTANCE_METERS) {
-                    lastRouteLocation = location;
-                    computeRoute(location);
+                    // Recompute route based on significant movement
+                    if (lastRouteLocation == null || location.distanceTo(lastRouteLocation) > ROUTE_RECALCULATION_DISTANCE_METERS) {
+                      lastRouteLocation = location;
+                      computeRoute(location);
+                    }
+
+                    // Update MapView's marker and camera
+                    updateMapLocation(location);
+                    checkIfReachedStepEnd(location);
+                  } else {
+                    // Optionally, you can still update the user's location on the map
+                    updateMapLocation(location);
                   }
-
-                  // Update MapView's marker and camera
-                  updateMapLocation(location);
-                  checkIfReachedStepEnd(location);
-
                   break; // Use the first location in the list
                 }
               }
@@ -443,6 +431,7 @@ public class GeospatialActivity extends AppCompatActivity
                     "Destination updated to Hibachi Station" + accessibility,
                     Toast.LENGTH_SHORT
             ).show();
+            isRoutingActive = true;
             fetchCurrentLocationAndComputeRoute();
           });
         } else {
@@ -1827,6 +1816,7 @@ public class GeospatialActivity extends AppCompatActivity
 
     // Step 1: Clear existing route anchors
     clearRouteAnchors();
+    isRoutingActive = true;
 
     // Step 2: Recompute the route and place new anchors
     fetchCurrentLocationAndComputeRoute();

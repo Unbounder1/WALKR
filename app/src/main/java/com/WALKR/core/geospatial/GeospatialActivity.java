@@ -15,6 +15,7 @@ import android.view.View;
 import android.media.MediaPlayer;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -110,6 +111,20 @@ import com.google.android.gms.maps.model.CircleOptions;
 import android.text.Html;
 import android.os.Build;
 import android.widget.TextView;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 // the good ones *_^
 
@@ -136,7 +151,7 @@ public class GeospatialActivity extends AppCompatActivity
 
   private static final String DIRECTIONS_API_URL = "https://maps.googleapis.com/maps/api/directions/json";
   private static final String DIRECTIONS_API_KEY = BuildConfig.API_KEY;
-  private static final int ANCHOR_INTERVAL_METERS = 1; // Adjust as needed
+  private static final int ANCHOR_INTERVAL_METERS = 8; // Adjust as needed
   private static final int MIN_ANCHOR_INTERVAL_METERS = 1;
   private static final double PROXIMITY_THRESHOLD_METERS = 2.0; // Threshold for proximity to an anchor
   private static final double GEOFENCING_THRESHOLD_METERS = 100.0;
@@ -236,11 +251,10 @@ public class GeospatialActivity extends AppCompatActivity
   private final TrackingStateHelper trackingStateHelper = new TrackingStateHelper(this);
   private SampleRender render;
   private SharedPreferences sharedPreferences;
-
-  private String lastStatusText;
   private Button clearAnchorsButton;
   private Button replaceRouteAnchorsButton;
-  private SwitchCompat streetscapeGeometrySwitch;
+  private ImageView accessibleModeIcon;
+
 
   private PlaneRenderer planeRenderer;
   private BackgroundRenderer backgroundRenderer;
@@ -331,6 +345,9 @@ public class GeospatialActivity extends AppCompatActivity
     sharedPreferences = getPreferences(Context.MODE_PRIVATE);
 
     setContentView(R.layout.activity_main);
+
+    accessibleModeIcon = findViewById(R.id.accessible_mode_icon);
+    accessibleModeIcon.setVisibility(isWheelchairAccessible ? View.VISIBLE : View.GONE);
     surfaceView = findViewById(R.id.surfaceview);
     clearAnchorsButton = findViewById(R.id.clear_anchors_button);
     replaceRouteAnchorsButton = findViewById(R.id.replace_route_anchors_button); // Initialize new button
@@ -407,12 +424,11 @@ public class GeospatialActivity extends AppCompatActivity
   }
 
   private void handleHibachiStationRequest(String text) {
-    // Set isWheelchairAccessible based on the presence of "wheelchair" in the recognized text
-    boolean isWheelchairAccessible = text.toLowerCase().contains("accessible");
+    isWheelchairAccessible = text.toLowerCase().contains("accessible");
 
-    runOnUiThread(() ->
-            Toast.makeText(this, "Fetching coordinates for Hibachi Station...", Toast.LENGTH_SHORT).show()
-    );
+    runOnUiThread(() -> {
+      Toast.makeText(this, "Fetching coordinates for Hibachi Station...", Toast.LENGTH_SHORT).show();
+    });
 
     placeFinderHelper.getPlaceAddress("hibachi station", new PlaceFinderHelper.PlaceFinderCallback() {
       @Override
@@ -431,6 +447,11 @@ public class GeospatialActivity extends AppCompatActivity
                     "Destination updated to Hibachi Station" + accessibility,
                     Toast.LENGTH_SHORT
             ).show();
+
+            if (accessibleModeIcon != null) {
+              accessibleModeIcon.setVisibility(isWheelchairAccessible ? View.VISIBLE : View.GONE);
+            }
+
             isRoutingActive = true;
             fetchCurrentLocationAndComputeRoute();
           });
@@ -996,6 +1017,10 @@ public class GeospatialActivity extends AppCompatActivity
 
         // Determine which shader to use based on anchor type
         if (terrainAnchors.contains(anchor) || rooftopAnchors.contains(anchor)) {
+          terrainAnchorVirtualObjectShader.setTexture(
+                  "u_Texture", isWheelchairAccessible ? terrainAnchorTextureAccessible : terrainAnchorTextureDefault
+          );
+
           terrainAnchorVirtualObjectShader.setMat4("u_ModelViewProjection", modelViewProjectionMatrix);
           render.draw(virtualObjectMesh, terrainAnchorVirtualObjectShader, virtualSceneFramebuffer);
         } else {
@@ -1495,7 +1520,35 @@ public class GeospatialActivity extends AppCompatActivity
       public void onResponse(Call call, Response response) throws IOException {
         if (response.isSuccessful()) {
           String resp = response.body().string();
-          parseDirections(resp, callback);
+          parseDirections(resp, new DirectionsCallback() {
+            @Override
+            public void onSuccess(List<LatLng> routePoints, List<DirectionStep> steps) {
+              // Now get elevation data
+              getElevationData(routePoints, new ElevationCallback() {
+                @Override
+                public void onSuccess(Map<LatLng, Double> elevationData) {
+                  // Now compute gradient and check steepness
+                  boolean isSteep = checkSteepness(routePoints, elevationData);
+                  if (isWheelchairAccessible && isSteep) {
+                    // The path is too steep for wheelchair accessibility
+                    callback.onFailure("Route is too steep for wheelchair accessibility.");
+                  } else {
+                    callback.onSuccess(routePoints, steps);
+                  }
+                }
+
+                @Override
+                public void onFailure(String error) {
+                  callback.onFailure("Elevation Error: " + error);
+                }
+              });
+            }
+
+            @Override
+            public void onFailure(String error) {
+              callback.onFailure(error);
+            }
+          });
         } else {
           callback.onFailure("API Error: " + response.message());
         }
@@ -1519,6 +1572,18 @@ public class GeospatialActivity extends AppCompatActivity
       }
 
       JsonObject route = routes.get(0).getAsJsonObject();
+      if (isWheelchairAccessible) {
+        JsonArray warnings = route.getAsJsonArray("warnings");
+        if (warnings != null) {
+          for (JsonElement warningElement : warnings) {
+            String warning = warningElement.getAsString().toLowerCase();
+            if (warning.contains("stairs")) {
+              callback.onFailure("Route includes stairs, which are not wheelchair accessible.");
+              return;
+            }
+          }
+        }
+      }
       JsonObject overviewPolyline = route.getAsJsonObject("overview_polyline");
       String encodedPoints = overviewPolyline.get("points").getAsString();
       List<LatLng> routePoints = decodePolyline(encodedPoints);
@@ -1678,48 +1743,6 @@ public class GeospatialActivity extends AppCompatActivity
     Log.d(TAG, "Total interpolated route points: " + interpolatedPoints.size());
     return interpolatedPoints;
   }
-
-  /**
-   * Creates a Terrain Anchor specifically for the route and adds it to routeAnchors set.
-   *
-   * @param earth      The Earth object from ARCore.
-   * @param latitude   The latitude of the anchor location.
-   * @param longitude  The longitude of the anchor location.
-   * @param quaternion The orientation quaternion.
-   */
-  private void createRouteTerrainAnchor(
-          Earth earth, double latitude, double longitude, float[] quaternion) {
-    Log.d(TAG, "Resolving Route Terrain Anchor asynchronously for (" + latitude + ", " + longitude + ")");
-    earth.resolveAnchorOnTerrainAsync(
-            latitude,
-            longitude,
-            /* altitudeAboveTerrain= */ 0.0f,
-            quaternion[0],
-            quaternion[1],
-            quaternion[2],
-            quaternion[3],
-            (anchor, state) -> {
-              if (state == TerrainAnchorState.SUCCESS) {
-                synchronized (routeAnchorsLock) {
-                  routeAnchors.add(anchor);
-                }
-                synchronized (anchorsLock) {
-                  anchors.add(anchor);
-                  terrainAnchors.add(anchor);
-                }
-                // Store Route Terrain Anchor parameters for persistence
-                Log.d(TAG, "Successfully placed Route Terrain Anchor at (" + latitude + ", " + longitude + ")");
-              } else {
-                String errorMessage;
-                errorMessage = "Failed to place Route Terrain Anchor.";
-                Log.e(TAG, "Error placing Route Terrain Anchor at (" + latitude + ", " + longitude + "): " + errorMessage);
-                runOnUiThread(() -> {
-                  Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
-                });
-              }
-            });
-  }
-
   private void checkProximityToAnchors(Location currentLocation) {
     synchronized (anchorsLock) {
       Iterator<Anchor> iterator = anchors.iterator();
@@ -1733,7 +1756,6 @@ public class GeospatialActivity extends AppCompatActivity
         GeospatialPose geospatialPose = session.getEarth().getGeospatialPose(anchor.getPose());
 
         if (geospatialPose == null) {
-          Log.e(TAG, "GeospatialPose is null for anchor: " + anchor);
           continue;
         }
 
@@ -2067,6 +2089,125 @@ public class GeospatialActivity extends AppCompatActivity
       runOnUiThread(() -> updateDirectionUI());
     }
   }
+  private void getElevationData(List<LatLng> points, ElevationCallback callback) {
+    if (points == null || points.isEmpty()) {
+      callback.onFailure("No points provided for elevation data.");
+      return;
+    }
+
+    int maxLocationsPerRequest = 512;
+    List<List<LatLng>> batches = new ArrayList<>();
+    int totalPoints = points.size();
+    for (int i = 0; i < totalPoints; i += maxLocationsPerRequest) {
+      int end = Math.min(totalPoints, i + maxLocationsPerRequest);
+      batches.add(points.subList(i, end));
+    }
+
+    Map<LatLng, Double> elevationData = new HashMap<>();
+    AtomicInteger pendingRequests = new AtomicInteger(batches.size());
+    AtomicBoolean hasFailed = new AtomicBoolean(false);
+
+    for (List<LatLng> batch : batches) {
+      // Build the locations parameter
+      StringBuilder locationsBuilder = new StringBuilder();
+      for (LatLng point : batch) {
+        if (locationsBuilder.length() > 0) {
+          locationsBuilder.append("|");
+        }
+        locationsBuilder.append(point.latitude).append(",").append(point.longitude);
+      }
+
+      // Build the URL
+      HttpUrl url = HttpUrl.parse("https://maps.googleapis.com/maps/api/elevation/json")
+              .newBuilder()
+              .addQueryParameter("locations", locationsBuilder.toString())
+              .addQueryParameter("key", DIRECTIONS_API_KEY)
+              .build();
+
+      Request request = new Request.Builder().url(url).build();
+      OkHttpClient client = new OkHttpClient();
+
+      client.newCall(request).enqueue(new Callback() {
+        @Override
+        public void onFailure(Call call, IOException e) {
+          if (!hasFailed.getAndSet(true)) {
+            callback.onFailure("Network Error: " + e.getMessage());
+          }
+        }
+
+        @Override
+        public void onResponse(Call call, Response response) throws IOException {
+          if (response.isSuccessful()) {
+            String resp = response.body().string();
+            JsonObject jsonObject = JsonParser.parseString(resp).getAsJsonObject();
+            String status = jsonObject.get("status").getAsString();
+            if (status.equals("OK")) {
+              JsonArray results = jsonObject.getAsJsonArray("results");
+              for (int i = 0; i < results.size(); i++) {
+                JsonObject result = results.get(i).getAsJsonObject();
+                double elevation = result.get("elevation").getAsDouble();
+                JsonObject location = result.get("location").getAsJsonObject();
+                double lat = location.get("lat").getAsDouble();
+                double lng = location.get("lng").getAsDouble();
+                LatLng point = new LatLng(lat, lng);
+                synchronized (elevationData) {
+                  elevationData.put(point, elevation);
+                }
+              }
+              int remaining = pendingRequests.decrementAndGet();
+              if (remaining == 0 && !hasFailed.get()) {
+                callback.onSuccess(elevationData);
+              }
+            } else {
+              if (!hasFailed.getAndSet(true)) {
+                callback.onFailure("Elevation API Error: " + status);
+              }
+            }
+          } else {
+            if (!hasFailed.getAndSet(true)) {
+              callback.onFailure("Elevation API Error: " + response.message());
+            }
+          }
+        }
+      });
+    }
+  }
+
+  private interface ElevationCallback {
+    void onSuccess(Map<LatLng, Double> elevationData);
+    void onFailure(String error);
+  }
+  private boolean checkSteepness(List<LatLng> routePoints, Map<LatLng, Double> elevationData) {
+    double maxAllowedGradient = 0.05; // 5% gradient
+
+    for (int i = 0; i < routePoints.size() - 1; i++) {
+      LatLng start = routePoints.get(i);
+      LatLng end = routePoints.get(i + 1);
+
+      Double startElevation = elevationData.get(start);
+      Double endElevation = elevationData.get(end);
+
+      if (startElevation == null || endElevation == null) {
+        continue; // Skip if elevation data is missing
+      }
+
+      double deltaElevation = endElevation - startElevation;
+      double distance = distanceBetween(start.latitude, start.longitude, end.latitude, end.longitude);
+
+      if (distance == 0) {
+        continue; // Avoid division by zero
+      }
+
+      double gradient = Math.abs(deltaElevation / distance); // Gradient as rise over run
+
+      if (gradient > maxAllowedGradient) {
+        return true; // Path is too steep
+      }
+    }
+
+    return false; // Path is acceptable
+  }
+
 
 
 }

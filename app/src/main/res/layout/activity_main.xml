@@ -154,7 +154,29 @@ android:layout_marginEnd="16dp"
 android:visibility="invisible"/>
 
 
+<!-- res/layout/activity_main.xml -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_relative_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".GeospatialActivity">
 
+    <!-- Existing Views -->
+
+    <!-- Accessible Mode ImageView -->
+    <ImageView
+        android:id="@+id/accessible_mode_icon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/accessibility"
+        android:contentDescription="@null"
+        android:visibility="visible"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="16dp" />
+
+</RelativeLayout>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

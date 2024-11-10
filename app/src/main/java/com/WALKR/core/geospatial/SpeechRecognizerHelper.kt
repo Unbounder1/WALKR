@@ -74,12 +74,10 @@ class SpeechRecognizerHelper(
             when {
                 recognizedText.contains("hibachi station") && recognizedText.contains("accessible") -> {
                     listener.onRecognizedText("hibachi station accessible")
-                    stopListening()
                     fetchPlaceDetails("hibachi station")
                 }
                 recognizedText.contains("hibachi station") -> {
                     listener.onRecognizedText("hibachi station")
-                    stopListening()
                     fetchPlaceDetails("hibachi station")
                 }
                 recognizedText.contains("pothole") && recognizedText.contains("report") -> {

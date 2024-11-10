@@ -1,97 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-   Copyright 2022 Google LLC
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
--->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.google.ar.core.examples.java.geospatial.com.WALKR.ar.core.examples.java.geospatial.GeospatialActivity">
+    tools:context="com.WALKR.core.geospatial.GeospatialActivity">
 
+  <!-- AR SurfaceView -->
   <android.opengl.GLSurfaceView
       android:id="@+id/surfaceview"
-      android:layout_width="fill_parent"
-      android:layout_height="fill_parent"
-      android:layout_gravity="top"/>
+      android:layout_width="0dp"
+      android:layout_height="0dp"
+      app:layout_constraintBottom_toBottomOf="parent"
+      app:layout_constraintEnd_toEndOf="parent"
+      app:layout_constraintStart_toStartOf="parent"
+      app:layout_constraintTop_toTopOf="parent" />
 
-  <TextView
-      android:id="@+id/status_text_view"
-      android:layout_width="fill_parent"
-      android:layout_height="150dp"
-      android:layout_alignParentStart="true"
-      android:layout_alignParentBottom="true"
-      android:padding="20dp"
-      android:textColor="#ffffff"
-      android:background="#bf323232"/>
+  <!-- MapView wrapped inside CardView for rounded corners and elevation -->
+  <androidx.cardview.widget.CardView
+      android:id="@+id/mapContainer"
+      android:layout_width="166dp"
+      android:layout_height="153dp"
+      android:layout_margin="0dp"
+      app:cardCornerRadius="50dp"
+      app:cardElevation="8dp"
+      app:layout_constraintStart_toStartOf="parent"
+      tools:layout_editor_absoluteY="2dp">
 
-  <TextView
-      android:id="@+id/geospatial_pose_view"
-      android:layout_width="fill_parent"
-      android:layout_height="wrap_content"
-      android:layout_gravity="top"
-      android:padding="20dp"
-      android:textColor="#ffffff"
-      android:background="#bf323232"/>
+    <com.google.android.gms.maps.MapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="197dp" />
 
-  <Button
-      android:id="@+id/set_anchor_button"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_above="@+id/streetscape_geometry_switch"
-      android:text="@string/button_text_set_anchor"
-      android:drawableRight="@drawable/ic_settings_white"
-      android:layout_alignParentRight="true"
-      android:visibility="invisible"/>
+  </androidx.cardview.widget.CardView>
 
-  <!-- Replace Route Anchors Button -->
-  <Button
-      android:id="@+id/replace_route_anchors_button"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="Replace Route Anchors"
-      android:layout_marginTop="16dp"
-      android:layout_centerHorizontal="true"
-      android:layout_above="@id/streetscape_geometry_switch"
-      android:visibility="visible" />
+  <!-- DEBUG SWITCHES -->
 
-  <Switch
+  <androidx.appcompat.widget.SwitchCompat
       android:id="@+id/streetscape_geometry_switch"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="@string/switch_render_streetscaope_geometry"
-      android:layout_alignParentRight="true"
-      android:layout_alignParentBottom="true"
-      android:padding="10dp"
       android:textOff="Off"
-      android:textOn="On" />
+      android:textOn="On"
+      app:layout_constraintBottom_toBottomOf="parent"
+      app:layout_constraintEnd_toEndOf="parent"
+      android:padding="10dp"
+      android:visibility="invisible"/>
 
-  <Switch
+  <androidx.appcompat.widget.SwitchCompat
       android:id="@+id/wheelchair_switch"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="Wheelchair Accessible Route"
-      android:layout_marginStart="210dp"
-      android:layout_marginTop="16dp"/>
+      app:layout_constraintTop_toBottomOf="@id/replace_route_anchors_button"
+      app:layout_constraintStart_toStartOf="parent"
+      app:layout_constraintEnd_toEndOf="parent"
+      app:layout_constraintHorizontal_bias="0.5"
+      android:visibility="invisible"/>
+
+  <Button
+      android:id="@+id/replace_route_anchors_button"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="40dp"
+      android:text="Replace Route Anchors"
+      app:layout_constraintEnd_toEndOf="parent"
+      app:layout_constraintHorizontal_bias="1.0"
+      app:layout_constraintStart_toStartOf="parent" />
 
   <Button
       android:id="@+id/clear_anchors_button"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="@string/button_text_clear_anchors"
-      android:layout_alignParentLeft="true"
-      android:layout_alignParentBottom="true"
+      app:layout_constraintBottom_toBottomOf="parent"
+      app:layout_constraintStart_toStartOf="parent"
       android:visibility="invisible"/>
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

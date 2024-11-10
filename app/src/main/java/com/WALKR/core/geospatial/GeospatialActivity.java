@@ -88,6 +88,23 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.Iterator;
+import androidx.appcompat.widget.SwitchCompat;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.MapView;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import androidx.core.app.ActivityCompat;
+import android.content.pm.PackageManager;
+import androidx.annotation.NonNull;
+import com.google.android.gms.maps.MapsInitializer;
+import com.google.android.gms.maps.UiSettings;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
+
 
 /**
  * Main activity for the Geospatial API example.
@@ -99,7 +116,8 @@ import java.util.Iterator;
 public class GeospatialActivity extends AppCompatActivity
         implements SampleRender.Renderer,
         VpsAvailabilityNoticeDialogFragment.NoticeDialogListener,
-        PrivacyNoticeDialogFragment.NoticeDialogListener {
+        PrivacyNoticeDialogFragment.NoticeDialogListener,
+        OnMapReadyCallback {
 
   private static final String TAG = GeospatialActivity.class.getSimpleName();
 
@@ -113,6 +131,8 @@ public class GeospatialActivity extends AppCompatActivity
   private static final int MIN_ANCHOR_INTERVAL_METERS = 1;
   private static final double PROXIMITY_THRESHOLD_METERS = 2.0; // Threshold for proximity to an anchor
   private static final double GEOFENCING_THRESHOLD_METERS = 100.0;
+  private static final double MAP_CIRCLE_RADIUS = 10.0;
+  private static final float MAP_ZOOM = 18;
   private static final double BUS_STOP_THRESHOLD = 500.0;
   private boolean isWheelchairAccessible = false;
 
@@ -130,8 +150,6 @@ public class GeospatialActivity extends AppCompatActivity
   private static final double LOCALIZED_ORIENTATION_YAW_ACCURACY_HYSTERESIS_DEGREES = 100;
 
   private static final int LOCALIZING_TIMEOUT_SECONDS = 180;
-  private static final int MAXIMUM_ANCHORS = 2000;
-  private static final long DURATION_FOR_NO_TERRAIN_ANCHOR_RESULT_MS = 10000;
   private static final int MAX_SEGMENT_DISTANCE_METERS = 50;
 
   private static final double FINAL_DESTINATION_LATITUDE = 42.72992506225727; // Example latitude
@@ -142,9 +160,11 @@ public class GeospatialActivity extends AppCompatActivity
   // Rendering
   private GLSurfaceView surfaceView;
   private final Set<Anchor> busStopAnchors = new HashSet<>();
+  private MapView mapView;
+  private GoogleMap googleMap;
 
   private boolean installRequested;
-  private Integer clearedAnchorsAmount = null;
+  private static final int LOCATION_PERMISSION_REQUEST_CODE = 1000;
 
   /**
    * Timer to keep track of how much time has passed since localizing has started.
@@ -154,6 +174,8 @@ public class GeospatialActivity extends AppCompatActivity
    * Deadline for showing resolving terrain anchors no result yet message.
    */
   private long deadlineForMessageMillis;
+  private Marker currentLocationMarker;
+  private Circle userLocationCircle;
 
   enum State {
     UNINITIALIZED,
@@ -173,6 +195,7 @@ public class GeospatialActivity extends AppCompatActivity
     ROOFTOP,
     TERRAIN_ROUTE // New type for route-specific Terrain Anchors
   }
+
   private static class TargetLocation {
     double latitude;
     double longitude;
@@ -201,12 +224,9 @@ public class GeospatialActivity extends AppCompatActivity
   private SharedPreferences sharedPreferences;
 
   private String lastStatusText;
-  private TextView geospatialPoseTextView;
-  private TextView statusTextView;
-  private Button setAnchorButton;
   private Button clearAnchorsButton;
   private Button replaceRouteAnchorsButton;
-  private Switch streetscapeGeometrySwitch;
+  private SwitchCompat streetscapeGeometrySwitch;
 
   private PlaneRenderer planeRenderer;
   private BackgroundRenderer backgroundRenderer;
@@ -268,30 +288,31 @@ public class GeospatialActivity extends AppCompatActivity
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    targetLocations.add(new TargetLocation(42.73005514542626, -73.68164119587962 , 40));
+    targetLocations.add(new TargetLocation(42.73005514542626, -73.68164119587962, 40));
 
     sharedPreferences = getPreferences(Context.MODE_PRIVATE);
 
     setContentView(R.layout.activity_main);
     surfaceView = findViewById(R.id.surfaceview);
-    geospatialPoseTextView = findViewById(R.id.geospatial_pose_view);
-    statusTextView = findViewById(R.id.status_text_view);
-    setAnchorButton = findViewById(R.id.set_anchor_button);
     clearAnchorsButton = findViewById(R.id.clear_anchors_button);
     replaceRouteAnchorsButton = findViewById(R.id.replace_route_anchors_button); // Initialize new button
 
     // Initialize the Wheelchair Accessible Route Switch
-    Switch wheelchairSwitch = findViewById(R.id.wheelchair_switch);
-    wheelchairSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-      isWheelchairAccessible = isChecked;
-      Toast.makeText(this, "Wheelchair Accessible Route: " + (isChecked ? "Enabled" : "Disabled"), Toast.LENGTH_SHORT).show();
-      if (isChecked) {
-        Toast.makeText(this, "Note: Wheelchair-accessible routes are approximated and may not be fully accessible.", Toast.LENGTH_LONG).show();
+    SwitchCompat wheelchairSwitch = findViewById(R.id.wheelchair_switch);
 
-      }
-      updateTerrainAnchorTexture();
-      handleReplaceRouteAnchorsButton();
-    });
+    if (wheelchairSwitch != null) {
+      wheelchairSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+        isWheelchairAccessible = isChecked;
+        Toast.makeText(this, "Wheelchair Accessible Route: " + (isChecked ? "Enabled" : "Disabled"), Toast.LENGTH_SHORT).show();
+        if (isChecked) {
+          Toast.makeText(this, "Note: Wheelchair-accessible routes are approximated and may not be fully accessible.", Toast.LENGTH_LONG).show();
+        }
+        updateTerrainAnchorTexture();
+        handleReplaceRouteAnchorsButton();
+      });
+    } else {
+      Log.e(TAG, "wheelchair_switch not found in layout");
+    }
 
     // Set up Replace Route Anchors Button
     replaceRouteAnchorsButton.setOnClickListener(
@@ -301,36 +322,19 @@ public class GeospatialActivity extends AppCompatActivity
                 handleReplaceRouteAnchorsButton();
               }
             });
-
-    setAnchorButton.setOnClickListener(
-            new View.OnClickListener() {
-              @Override
-              public void onClick(View v) {
-                PopupMenu popup = new PopupMenu(GeospatialActivity.this, v);
-                popup.setOnMenuItemClickListener(GeospatialActivity.this::settingsMenuClick);
-                popup.inflate(R.menu.setting_menu);
-                popup.show();
-                popup
-                        .getMenu()
-                        .findItem(sharedPreferences.getInt(ANCHOR_MODE, R.id.geospatial))
-                        .setChecked(true);
-              }
-            });
-
     clearAnchorsButton.setOnClickListener(view -> handleClearAnchorsButton());
 
-    streetscapeGeometrySwitch = findViewById(R.id.streetscape_geometry_switch);
-    streetscapeGeometrySwitch.setChecked(false);
-    streetscapeGeometrySwitch.setOnCheckedChangeListener(this::onRenderStreetscapeGeometryChanged);
-
+    // Initialize DisplayRotationHelper and Renderer
     displayRotationHelper = new DisplayRotationHelper(/* activity= */ this);
-
-    // Set up renderer.
     render = new SampleRender(surfaceView, this, getAssets());
-
     installRequested = false;
-    clearedAnchorsAmount = null;
 
+    // Initialize MapView
+    mapView = findViewById(R.id.mapView);
+    mapView.onCreate(savedInstanceState);
+    mapView.getMapAsync(this); // This will trigger onMapReady when the map is ready
+
+    // Initialize FusedLocationProviderClient for location updates
     fusedLocationClient = LocationServices.getFusedLocationProviderClient(/* context= */ this);
 
     // Initialize MediaPlayer for success sound
@@ -353,6 +357,10 @@ public class GeospatialActivity extends AppCompatActivity
                     lastRouteLocation = location;
                     computeRoute(location);
                   }
+
+                  // Update MapView's marker and camera
+                  updateMapLocation(location);
+
                   break; // Use the first location in the list
                 }
               }
@@ -776,29 +784,6 @@ public class GeospatialActivity extends AppCompatActivity
       case LOCALIZING_FAILED:
         message = getResources().getString(R.string.status_localize_timeout);
         break;
-      case LOCALIZED:
-        if (lastStatusText.equals(getResources().getString(R.string.status_localize_hint))) {
-          message = getResources().getString(R.string.status_localize_complete);
-        }
-        break;
-    }
-
-    if (message != null && !message.equals(lastStatusText)) {
-      lastStatusText = message;
-      runOnUiThread(
-              () -> {
-                statusTextView.setVisibility(View.VISIBLE);
-                statusTextView.setText(lastStatusText);
-              });
-    }
-
-    synchronized (anchorsLock) {
-      if (anchors.size() >= MAXIMUM_ANCHORS) {
-        runOnUiThread(
-                () -> {
-                  setAnchorButton.setVisibility(View.INVISIBLE);
-                });
-      }
     }
 
 
@@ -911,17 +896,6 @@ public class GeospatialActivity extends AppCompatActivity
           }
         }
       }
-      if (anchors.size() > 0) {
-        String anchorMessage =
-                getResources()
-                        .getQuantityString(
-                                R.plurals.status_anchors_set, anchors.size(), anchors.size(), MAXIMUM_ANCHORS);
-        runOnUiThread(
-                () -> {
-                  statusTextView.setVisibility(View.VISIBLE);
-                  statusTextView.setText(anchorMessage);
-                });
-      }
     }
 
     // Compose the virtual scene with the background.
@@ -1009,8 +983,6 @@ public class GeospatialActivity extends AppCompatActivity
       state = State.LOCALIZING;
       return;
     }
-
-    runOnUiThread(() -> geospatialPoseTextView.setText(R.string.geospatial_pose_not_tracking));
   }
 
   /**
@@ -1022,18 +994,6 @@ public class GeospatialActivity extends AppCompatActivity
             && geospatialPose.getOrientationYawAccuracy()
             <= LOCALIZING_ORIENTATION_YAW_ACCURACY_THRESHOLD_DEGREES) {
       state = State.LOCALIZED;
-      synchronized (anchorsLock) {
-        final int anchorNum = anchors.size();
-        if (anchorNum < MAXIMUM_ANCHORS) {
-          runOnUiThread(
-                  () -> {
-                    setAnchorButton.setVisibility(View.VISIBLE);
-                    if (anchorNum > 0) {
-                      clearAnchorsButton.setVisibility(View.VISIBLE);
-                    }
-                  });
-        }
-      }
       return;
     }
 
@@ -1043,7 +1003,6 @@ public class GeospatialActivity extends AppCompatActivity
       return;
     }
 
-    updateGeospatialPoseText(geospatialPose);
   }
 
   /**
@@ -1060,41 +1019,16 @@ public class GeospatialActivity extends AppCompatActivity
       state = State.LOCALIZING;
       localizingStartTimestamp = System.currentTimeMillis();
       runOnUiThread(() -> {
-        setAnchorButton.setVisibility(View.INVISIBLE);
         clearAnchorsButton.setVisibility(View.INVISIBLE);
       });
       return;
     }
-
-    updateGeospatialPoseText(geospatialPose);
 
     // **New Code: Place Bus Stop Anchors Once Localized**
     if (!busStopAnchorsPlaced) {
       placeBusStopAnchors();
       busStopAnchorsPlaced = true;
     }
-  }
-
-  private void updateGeospatialPoseText(GeospatialPose geospatialPose) {
-    float[] quaternion = geospatialPose.getEastUpSouthQuaternion();
-    String poseText =
-            getResources()
-                    .getString(
-                            R.string.geospatial_pose,
-                            geospatialPose.getLatitude(),
-                            geospatialPose.getLongitude(),
-                            geospatialPose.getHorizontalAccuracy(),
-                            geospatialPose.getAltitude(),
-                            geospatialPose.getVerticalAccuracy(),
-                            quaternion[0],
-                            quaternion[1],
-                            quaternion[2],
-                            quaternion[3],
-                            geospatialPose.getOrientationYawAccuracy());
-    runOnUiThread(
-            () -> {
-              geospatialPoseTextView.setText(poseText);
-            });
   }
 
   /**
@@ -1135,30 +1069,19 @@ public class GeospatialActivity extends AppCompatActivity
 
   private void handleClearAnchorsButton() {
     synchronized (anchorsLock) {
-      clearedAnchorsAmount = 0;
       Iterator<Anchor> iterator = anchors.iterator();
       while (iterator.hasNext()) {
         Anchor anchor = iterator.next();
         if (!busStopAnchors.contains(anchor)) {
           anchor.detach();
           iterator.remove();
-          clearedAnchorsAmount++;
         }
       }
-
-      String message =
-              getResources()
-                      .getQuantityString(
-                              R.plurals.status_anchors_cleared, clearedAnchorsAmount, clearedAnchorsAmount);
-
-      statusTextView.setVisibility(View.VISIBLE);
-      statusTextView.setText(message);
     }
 
     // Only hide the clear button if no non-bus stop anchors remain
     if (anchors.size() == busStopAnchors.size()) {
       clearAnchorsButton.setVisibility(View.INVISIBLE);
-      setAnchorButton.setVisibility(View.VISIBLE);
     }
   }
 
@@ -1203,10 +1126,6 @@ public class GeospatialActivity extends AppCompatActivity
                           terrainAnchors.add(anchor);
                         }
                       } else {
-                        runOnUiThread(() -> {
-                          statusTextView.setVisibility(View.VISIBLE);
-                          statusTextView.setText(getString(R.string.status_terrain_anchor, state));
-                        });
                       }
                     });
   }
@@ -1230,6 +1149,7 @@ public class GeospatialActivity extends AppCompatActivity
     }
     isRenderStreetscapeGeometry = isChecked;
   }
+
   /**
    * Places Terrain Anchors along the interpolated route with quaternions facing the direction of the next anchor.
    *
@@ -1338,6 +1258,7 @@ public class GeospatialActivity extends AppCompatActivity
       this.longitude = lng;
     }
   }
+
   /**
    * Recompute the route from the current location to the final destination.
    *
@@ -1394,6 +1315,7 @@ public class GeospatialActivity extends AppCompatActivity
             }
     );
   }
+
   private List<LatLng> filterPointsByProximity(List<LatLng> routePoints, Location currentLocation, double thresholdMeters) {
     List<LatLng> proximatePoints = new ArrayList<>();
 
@@ -1415,6 +1337,7 @@ public class GeospatialActivity extends AppCompatActivity
 
     return proximatePoints;
   }
+
   /**
    * Fetches the route from origin to destination using Google Directions API.
    *
@@ -1537,13 +1460,14 @@ public class GeospatialActivity extends AppCompatActivity
 
     fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
   }
+
   /**
    * Interpolates route points to ensure anchors are placed at exact intervals,
    * but only for segments within a specified maximum distance.
    *
-   * @param routePoints         List of LatLng points representing the route.
-   * @param intervalMeters      Desired interval between anchors in meters.
-   * @param maxSegmentDistance  Maximum allowable distance between two consecutive points for interpolation.
+   * @param routePoints        List of LatLng points representing the route.
+   * @param intervalMeters     Desired interval between anchors in meters.
+   * @param maxSegmentDistance Maximum allowable distance between two consecutive points for interpolation.
    * @return List of LatLng points spaced at the specified interval within the segment distance constraint.
    */
   private List<LatLng> interpolateRoutePoints(List<LatLng> routePoints, int intervalMeters, int maxSegmentDistance) {
@@ -1634,8 +1558,6 @@ public class GeospatialActivity extends AppCompatActivity
                 errorMessage = "Failed to place Route Terrain Anchor.";
                 Log.e(TAG, "Error placing Route Terrain Anchor at (" + latitude + ", " + longitude + "): " + errorMessage);
                 runOnUiThread(() -> {
-                  statusTextView.setVisibility(View.VISIBLE);
-                  statusTextView.setText(errorMessage);
                   Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
                 });
               }
@@ -1793,6 +1715,7 @@ public class GeospatialActivity extends AppCompatActivity
     }
     return false;
   }
+
   private boolean isTargetLocationAnchor(Anchor anchor) {
     Earth earth = session.getEarth();
     if (earth == null) return false;
@@ -1817,6 +1740,7 @@ public class GeospatialActivity extends AppCompatActivity
     }
     return false; // No matching target location found
   }
+
   private void placeBusStopAnchors() {
     Earth earth = session.getEarth();
     if (earth == null || earth.getTrackingState() != TrackingState.TRACKING) {
@@ -1833,6 +1757,7 @@ public class GeospatialActivity extends AppCompatActivity
       Toast.makeText(this, "Bus stops placed in AR scene.", Toast.LENGTH_SHORT).show();
     });
   }
+
   private void createAnchorAtBusStop(Earth earth, TargetLocation busStop) {
     double latitude = busStop.latitude;
     double longitude = busStop.longitude;
@@ -1862,6 +1787,7 @@ public class GeospatialActivity extends AppCompatActivity
 
     Log.d(TAG, "Bus Stop Anchor created at (" + latitude + ", " + longitude + ") with bearing " + bearing);
   }
+
   private float calculateBearingToNextBusStop(TargetLocation currentBusStop) {
     int currentIndex = targetLocations.indexOf(currentBusStop);
     if (currentIndex == -1 || currentIndex >= targetLocations.size() - 1) {
@@ -1874,4 +1800,73 @@ public class GeospatialActivity extends AppCompatActivity
     );
   }
 
+  @Override
+  public void onMapReady(GoogleMap googleMap) {
+    this.googleMap = googleMap;
+
+    // Enable My Location layer if permissions are granted
+    try {
+      googleMap.setMyLocationEnabled(true);
+    } catch (SecurityException e) {
+      Log.e(TAG, "Location permissions not granted for My Location layer.");
+    }
+
+    // Disable default UI controls as needed
+    googleMap.getUiSettings().setMyLocationButtonEnabled(false); // Hide location button
+    googleMap.getUiSettings().setZoomControlsEnabled(false); // Hide zoom controls
+    googleMap.getUiSettings().setAllGesturesEnabled(false); // Disable all gestures to prevent user interaction
+
+    // Initially center the map on the user's last known location
+    fusedLocationClient.getLastLocation()
+            .addOnSuccessListener(this, location -> {
+              if (location != null) {
+                updateMapLocation(location);
+              }
+            });
+  }
+  /**
+   * Updates the map's marker and camera position based on the user's current location.
+   *
+   * @param location The user's current location.
+   */
+  private void updateMapLocation(Location location) {
+    if (googleMap == null) {
+      return;
+    }
+
+    com.google.android.gms.maps.model.LatLng userLatLng = new com.google.android.gms.maps.model.LatLng(location.getLatitude(), location.getLongitude());
+    if (currentLocationMarker == null) {
+      // Create a new marker if it doesn't exist
+      MarkerOptions markerOptions = new MarkerOptions()
+              .position(userLatLng)
+              .title("You are here")
+              .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)); // Customize marker color if desired
+      currentLocationMarker = googleMap.addMarker(markerOptions);
+
+      // Add a circle with 100-meter radius
+      CircleOptions circleOptions = new CircleOptions()
+              .center(userLatLng)
+              .radius(MAP_CIRCLE_RADIUS) // Radius in meters
+              .strokeColor(0x5500FF00) // Semi-transparent green
+              .fillColor(0x2200FF00)   // More transparent green
+              .strokeWidth(2f);
+      userLocationCircle = googleMap.addCircle(circleOptions);
+
+      // Move camera to user's location
+      googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, MAP_ZOOM));
+    } else {
+      // Update marker position
+      currentLocationMarker.setPosition(userLatLng);
+
+      // Update circle position
+      if (userLocationCircle != null) {
+        userLocationCircle.setCenter(userLatLng);
+      }
+
+      // Optionally, animate camera movement
+      googleMap.animateCamera(CameraUpdateFactory.newLatLng(userLatLng));
+    }
+  }
+
 }
+

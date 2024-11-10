@@ -1,5 +1,5 @@
 /*
- * Copyright ...
+ * Copyright 2017 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * ...
@@ -26,15 +26,21 @@ android {
     namespace "com.WALKR.core.geospatial"
     compileSdkVersion 35
 
+
+    buildFeatures {
+        buildConfig = true
+    }
     defaultConfig {
         applicationId "com.WALKR.core.geospatial"
-        minSdkVersion 28 // Ensure minSdkVersion is compatible with all dependencies
+        buildConfigField "String", "API_KEY", "\"${localProperties['MY_API_KEY']}\""
+
+        // AR Optional apps must declare minSdkVersion >= 14.
+        // AR Required apps must declare minSdkVersion >= 24.
+        minSdkVersion 28
         targetSdkVersion 35
         versionCode 1
         versionName "1.0"
 
-        // Add a single API key to BuildConfig since all keys are the same
-        buildConfigField "String", "API_KEY", "\"${localProperties['MY_API_KEY'] ?: ""}\""
     }
 
     buildTypes {
@@ -48,8 +54,6 @@ android {
             it.manifestPlaceholders = [GOOGLE_MAPS_API_KEY: localProperties['MY_API_KEY'] ?: ""]
         }
     }
-
-    // **5. Compile Options**
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -64,13 +68,6 @@ android {
         // If using Jetpack Compose, enable it
         // compose = true
     }
-
-    // **6. Compose Options (If Using Jetpack Compose)**
-    /*
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.2"
-    }
-    */
 }
 
 dependencies {
@@ -107,6 +104,8 @@ dependencies {
     // **Kotlin Coroutines for Asynchronous Operations**
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
+
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4' // for UI
 
     // **Jetpack Compose (Optional)**
     // Uncomment if using Jetpack Compose

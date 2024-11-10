@@ -19,22 +19,6 @@ app:layout_constraintStart_toStartOf="parent"
 app:layout_constraintTop_toTopOf="parent"
 app:layout_constraintVertical_bias="0.0" />
 
-    <ImageView
-        android:id="@+id/myImageView"
-        android:layout_width="268dp"
-        android:layout_height="211dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:contentDescription="@null"
-        android:scaleType="centerInside"
-        android:src="@drawable/scifi_map"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.0" />
-
     <FrameLayout
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -90,14 +74,6 @@ android:textColor="#002171"
 android:textSize="18sp"
 android:textStyle="bold"
 android:layout_gravity="center" />
-
-    <ImageView
-        android:id="@+id/myImageView"
-        android:layout_width="160dp"
-        android:layout_height="211dp"
-        android:contentDescription="@null"
-        android:scaleType="centerInside"
-        android:src="@drawable/rounded_rectangle" />
 
     <TextView
 android:id="@+id/next_direction"

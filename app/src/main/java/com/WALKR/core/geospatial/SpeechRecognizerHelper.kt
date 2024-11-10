@@ -80,6 +80,10 @@ class SpeechRecognizerHelper(
                     listener.onRecognizedText("hibachi station")
                     fetchPlaceDetails("hibachi station")
                 }
+                recognizedText.contains("west hall directions") -> {
+                    listener.onRecognizedText("west hall directions")
+                    fetchManualCoordinates() // Output the hardcoded coordinates
+                }
                 recognizedText.contains("pothole") && recognizedText.contains("report") -> {
                     listener.onRecognizedText("report pothole")
                 }
@@ -89,6 +93,18 @@ class SpeechRecognizerHelper(
             }
         }
     }
+
+    // Function to fetch manual coordinates for "west hall directions"
+    private fun fetchManualCoordinates() {
+        val manualCoordinates = mapOf(
+            "latitude" to 42.733222,
+            "longitude" to -73.683972
+        )
+
+        Log.d("SpeechRecognizerHelper", "Manual Coordinates for West Hall: $manualCoordinates")
+        // Optionally, handle manual coordinates (e.g., pass to listener, update UI, etc.)
+    }
+
 
     private fun fetchPlaceDetails(locationName: String) {
         placeFinderHelper.getPlaceAddress(locationName, object : PlaceFinderHelper.PlaceFinderCallback {

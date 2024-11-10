@@ -336,7 +336,7 @@ public class GeospatialActivity extends AppCompatActivity
     placeFinderHelper = new PlaceFinderHelper(DIRECTIONS_API_KEY);
 
     // Initialize SpeechRecognizerHelper
-    List<String> customPhrases = Arrays.asList("hibachi station", "report pothole", "hibachi station accessible");
+    List<String> customPhrases = Arrays.asList("hibachi station", "report pothole", "west hall directions", "hibachi station accessible");
     speechRecognizerHelper = new SpeechRecognizerHelper(this, this, DIRECTIONS_API_KEY);
     speechRecognizerHelper.initializeRecognizer(customPhrases);
 
@@ -416,6 +416,8 @@ public class GeospatialActivity extends AppCompatActivity
   public void onRecognizedText(String text) {
     if (text.equalsIgnoreCase("hibachi station") || text.equalsIgnoreCase("hibachi station accessible")) {
       handleHibachiStationRequest(text);
+    } else if (text.equalsIgnoreCase("west hall directions")) {
+      handleWestHall(text);
     } else if (text.equalsIgnoreCase("report pothole")) {
       handlePotholeReportRequest();
     } else {
@@ -463,6 +465,35 @@ public class GeospatialActivity extends AppCompatActivity
       }
     });
   }
+
+  private void handleWestHall(String text) {
+    if (text.contains("west hall directions")) {
+      // Use manual coordinates for West Hall
+      final double manualLatitude = 42.733222;
+      final double manualLongitude = -73.683972;
+
+      FINAL_DESTINATION_LATITUDE = manualLatitude;
+      FINAL_DESTINATION_LONGITUDE = manualLongitude;
+      isWheelchairAccessible = true;
+
+      runOnUiThread(() -> {
+        Toast.makeText(this, "Destination updated to West Hall", Toast.LENGTH_SHORT).show();
+
+        if (accessibleModeIcon != null) {
+          accessibleModeIcon.setVisibility(isWheelchairAccessible ? View.VISIBLE : View.GONE);
+        }
+
+        isRoutingActive = true;
+        fetchCurrentLocationAndComputeRoute();
+      });
+    } else {
+      runOnUiThread(() ->
+              Toast.makeText(GeospatialActivity.this, "Failed to fetch coordinates for West Hall", Toast.LENGTH_SHORT).show()
+      );
+    }
+  }
+
+
 
   private void handlePotholeReportRequest() {
     runOnUiThread(() ->

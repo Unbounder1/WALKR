@@ -1,12 +1,16 @@
-# WALKR - Mixed Reality Navigation Tool
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d9ce841b-c707-4aaa-b4b7-2e6a9cdb4802" />
+</p>
 
-![WALKR-logo](https://github.com/user-attachments/assets/d9ce841b-c707-4aaa-b4b7-2e6a9cdb4802)
+# WALKR - Mixed Reality Navigation Tool
 
 WALKR is an award-winning mixed-reality navigation tool that merges augmented reality and geospatial mapping to provide real-time, hands-free navigation assistance. Originally developed for the HACKRPI 2024 hackathon, WALKR uses cutting-edge AR and voice-recognition technologies to enhance accessibility and ease of navigation, especially in dense urban environments.
 
 ## Demo Video
 
-[![Check out a video demo of WALKR in action!](https://img.youtube.com/vi/LTzdAMWf2bk/maxresdefault.jpg)](https://youtu.be/LTzdAMWf2bk)
+<a href="https://youtu.be/LTzdAMWf2bk" target="_blank">
+  <img src="https://img.youtube.com/vi/LTzdAMWf2bk/maxresdefault.jpg" width="420" height="250">
+</a>
 
 ## Inspiration
 Navigating unfamiliar cities can be overwhelming, especially for those with mobility challenges. WALKR was designed to empower users to explore urban spaces confidently without constant reference to a map. Inspired by the 12% of the U.S. population affected by mobility disabilities, WALKR’s intuitive, accessible interface creates a reliable and inclusive wayfinding experience for all.

@@ -1,10 +1,10 @@
 # WALKR - Mixed Reality Navigation Tool
 
-![WALKR Logo](INSERT IMAGE HERE)
+![WALKR-logo](https://github.com/user-attachments/assets/2e0c2a06-d2de-4e77-a7ff-51976e1e8dd5)
 
-WALKR is an award-winning mixed reality navigation tool that merges augmented reality and geospatial mapping to provide real-time, hands-free navigation assistance. Originally developed for the HACKRPI 2024 hackathon, WALKR uses cutting-edge AR and voice-recognition technologies to enhance accessibility and ease of navigation, especially in dense urban environments.
+WALKR is an award-winning mixed-reality navigation tool that merges augmented reality and geospatial mapping to provide real-time, hands-free navigation assistance. Originally developed for the HACKRPI 2024 hackathon, WALKR uses cutting-edge AR and voice-recognition technologies to enhance accessibility and ease of navigation, especially in dense urban environments.
 
-## Demo
+## Demo Video
 
 [![Check out a video demo of WALKR in action!](https://img.youtube.com/vi/LTzdAMWf2bk/maxresdefault.jpg)](https://youtu.be/LTzdAMWf2bk)
 
@@ -41,7 +41,7 @@ Navigating unfamiliar cities can be overwhelming, especially for those with mobi
 2. Open the project in Android Studio.
 3. Connect an Android device and launch the app from Android Studio.
 
-> **Note:** You’ll need a Google Cardboard-style headset for the mixed reality experience.
+> **Note:** You’ll need a Google Cardboard-style headset for the mixed-reality experience.
 
 ## Usage
 1. **Insert your phone into the headset** and launch WALKR.
